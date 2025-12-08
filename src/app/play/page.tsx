@@ -1260,13 +1260,6 @@ function PlayPageClient() {
     const isWebkit =
       typeof window !== 'undefined' &&
       typeof (window as any).webkitConvertPointFromNodeToPage === 'function';
-	  
-	// 移动端检测
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-		navigator.userAgent
-      );
 
     // 非WebKit浏览器且播放器已存在，使用switch方法切换
     if (!isWebkit && artPlayerRef.current) {
@@ -1300,7 +1293,7 @@ function PlayPageClient() {
         poster: videoCover,
         volume: 0.7,
         isLive: false,
-        muted: isMobile,
+        muted: true,
         autoplay: true,
         pip: true,
         autoSize: false,
@@ -1317,7 +1310,7 @@ function PlayPageClient() {
         miniProgressBar: false,
         mutex: true,
         playsInline: true,
-        autoPlayback: false,
+        autoPlayback: true,
         airplay: true,
         theme: '#22c55e',
         lang: 'zh-cn',
@@ -1327,7 +1320,6 @@ function PlayPageClient() {
         lock: true,
         moreVideoAttr: {
           crossOrigin: 'anonymous',
-		  playsInline: true,
         },
         // HLS 支持配置
         customType: {
@@ -1500,27 +1492,21 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
-
-        // ⭐ 取出真实的 video 元素，并设置移动端相关属性
-        const videoEl = artPlayerRef.current?.video as HTMLVideoElement | null;
-        if (videoEl) {
-          // 这三个都是通过 setAttribute 设置，不受 TypeScript 限制
-          videoEl.setAttribute('playsinline', 'true');
-          videoEl.setAttribute('webkit-playsinline', 'true');
-          videoEl.setAttribute('x5-playsinline', 'true');
-        }
-
-        //  PC 端取消静音
-        if (!isMobile && artPlayerRef.current) {
-            artPlayerRef.current.muted = false;
-          }
+		
+		  const videoEl = artPlayerRef.current?.video as HTMLVideoElement | null;
+  		  if (videoEl) {
+		    // 再保险一次，确保静音
+		    videoEl.muted = true;
+		    videoEl.setAttribute('playsinline', 'true');
+		    videoEl.setAttribute('webkit-playsinline', 'true');
+		    videoEl.setAttribute('x5-playsinline', 'true');
+		  }
 
         // 播放器就绪后，如果正在播放则请求 Wake Lock
         if (artPlayerRef.current && !artPlayerRef.current.paused) {
-            requestWakeLock();
-          }
-        });
-
+          requestWakeLock();
+        }
+      });
 
       // 监听播放状态变化，控制 Wake Lock
       artPlayerRef.current.on('play', () => {
