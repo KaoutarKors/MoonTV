@@ -1328,8 +1328,6 @@ function PlayPageClient() {
         moreVideoAttr: {
           crossOrigin: 'anonymous',
 		  playsInline: true,
-		  'webkit-playsinline': 'true',
-		  'x5-playsinline': 'true',
         },
         // HLS 支持配置
         customType: {
@@ -1502,19 +1500,27 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
-		
-		  // PC 端自动恢复有声播放
-		  if (!isMobile && artPlayerRef.current) {
-		  artPlayerRef.current.muted = false;
-		  // 如果你想保持之前的音量，也可以用 lastVolumeRef
-		  // artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
-  }
+
+        // ⭐ 取出真实的 video 元素，并设置移动端相关属性
+        const videoEl = artPlayerRef.current?.video as HTMLVideoElement | null;
+        if (videoEl) {
+          // 这三个都是通过 setAttribute 设置，不受 TypeScript 限制
+          videoEl.setAttribute('playsinline', 'true');
+          videoEl.setAttribute('webkit-playsinline', 'true');
+          videoEl.setAttribute('x5-playsinline', 'true');
+        }
+
+        //  PC 端取消静音
+        if (!isMobile && artPlayerRef.current) {
+            artPlayerRef.current.muted = false;
+          }
 
         // 播放器就绪后，如果正在播放则请求 Wake Lock
         if (artPlayerRef.current && !artPlayerRef.current.paused) {
-          requestWakeLock();
-        }
-      });
+            requestWakeLock();
+          }
+        });
+
 
       // 监听播放状态变化，控制 Wake Lock
       artPlayerRef.current.on('play', () => {
