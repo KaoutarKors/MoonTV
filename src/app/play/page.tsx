@@ -202,6 +202,9 @@ function PlayPageClient() {
 
   const artPlayerRef = useRef<any>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
+  
+  // 记录是否至少被用户手动播放过一次
+  const hasUserInteractedRef = useRef(false);
 
   // Wake Lock 相关
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
@@ -1293,8 +1296,8 @@ function PlayPageClient() {
         poster: videoCover,
         volume: 0.7,
         isLive: false,
-        muted: true,
-        autoplay: true,
+        muted: false,
+        autoplay: hasUserInteractedRef.current,
         pip: true,
         autoSize: false,
         autoMini: false,
@@ -1310,7 +1313,7 @@ function PlayPageClient() {
         miniProgressBar: false,
         mutex: true,
         playsInline: true,
-        autoPlayback: true,
+        autoPlayback: hasUserInteractedRef.current,
         airplay: true,
         theme: '#22c55e',
         lang: 'zh-cn',
@@ -1495,8 +1498,7 @@ function PlayPageClient() {
 		
 		  const videoEl = artPlayerRef.current?.video as HTMLVideoElement | null;
   		  if (videoEl) {
-		    // 再保险一次，确保静音
-		    videoEl.muted = true;
+		    // 设置内联播放属性，避免 iOS 全屏
 		    videoEl.setAttribute('playsinline', 'true');
 		    videoEl.setAttribute('webkit-playsinline', 'true');
 		    videoEl.setAttribute('x5-playsinline', 'true');
@@ -1510,9 +1512,14 @@ function PlayPageClient() {
 
       // 监听播放状态变化，控制 Wake Lock
       artPlayerRef.current.on('play', () => {
-        requestWakeLock();
-      });
+        // ⭐ 第一次真正播放时，标记为“已经有过用户手动交互”
+        if (!hasUserInteractedRef.current) {
+          hasUserInteractedRef.current = true;
+          console.log('用户首次播放，后续可以自动播放有声视频');
+        }
 
+	  requestWakeLock();
+      });
       artPlayerRef.current.on('pause', () => {
         releaseWakeLock();
         saveCurrentPlayProgress();
