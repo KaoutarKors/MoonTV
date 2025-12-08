@@ -1260,6 +1260,13 @@ function PlayPageClient() {
     const isWebkit =
       typeof window !== 'undefined' &&
       typeof (window as any).webkitConvertPointFromNodeToPage === 'function';
+	  
+	// 移动端检测
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+		navigator.userAgent
+      );
 
     // 非WebKit浏览器且播放器已存在，使用switch方法切换
     if (!isWebkit && artPlayerRef.current) {
@@ -1293,7 +1300,7 @@ function PlayPageClient() {
         poster: videoCover,
         volume: 0.7,
         isLive: false,
-        muted: false,
+        muted: isMobile,
         autoplay: true,
         pip: true,
         autoSize: false,
@@ -1320,6 +1327,9 @@ function PlayPageClient() {
         lock: true,
         moreVideoAttr: {
           crossOrigin: 'anonymous',
+		  playsInline: true,
+		  'webkit-playsinline': 'true',
+		  'x5-playsinline': 'true',
         },
         // HLS 支持配置
         customType: {
@@ -1492,6 +1502,13 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
+		
+		  // PC 端自动恢复有声播放
+		  if (!isMobile && artPlayerRef.current) {
+		  artPlayerRef.current.muted = false;
+		  // 如果你想保持之前的音量，也可以用 lastVolumeRef
+		  // artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
+  }
 
         // 播放器就绪后，如果正在播放则请求 Wake Lock
         if (artPlayerRef.current && !artPlayerRef.current.paused) {
