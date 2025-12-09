@@ -1241,16 +1241,39 @@ function PlayPageClient() {
       return;
     }
 	
-	// ✅ 判断是不是移动端设备
-    const ua =
-      typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        ua
-      );
+	// 判断是不是移动端设备
+	const ua =
+	  typeof navigator !== 'undefined' ? navigator.userAgent : '';
+	const isMobile =
+	  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+		ua
+	  );
 
-    // ✅ 如果是移动端且还没有“解锁”，则先静音启动
-    const shouldStartMuted = isMobile && !autoPlayUnlockedRef.current;
+	// 是否已经被用户手动播放过一次（同一页面生命周期内）
+	const hasUnlocked = autoPlayUnlockedRef.current;
+
+	// 这里统一控制：是否自动播放 + 是否静音
+	let shouldAutoplay = true;
+	let shouldStartMuted = false;
+
+	// ✅ 手机端第一次：不自动播放 + 不静音（等待用户手动点播放）
+	if (isMobile && !hasUnlocked) {
+	  shouldAutoplay = false;
+	  shouldStartMuted = false;
+	}
+
+	// ✅ 手机端后续（已经解锁）：可以自动播放 + 有声音
+	if (isMobile && hasUnlocked) {
+	  shouldAutoplay = true;
+	  shouldStartMuted = false;
+	}
+
+	// ✅ PC 端：一直允许自动播放 + 有声音（按你需要）
+	if (!isMobile) {
+	  shouldAutoplay = true;
+	  shouldStartMuted = false;
+	}
+
 
     // 确保选集索引有效
     if (
@@ -1308,7 +1331,7 @@ function PlayPageClient() {
         volume: lastVolumeRef.current || 0.7,
         isLive: false,
         muted: shouldStartMuted,
-        autoplay: true,
+        autoplay: shouldAutoplay,
         pip: true,
         autoSize: false,
         autoMini: false,
@@ -1324,7 +1347,7 @@ function PlayPageClient() {
         miniProgressBar: false,
         mutex: true,
         playsInline: true,
-        autoPlayback: true,
+        autoPlayback: shouldAutoplay,
         airplay: true,
         theme: '#22c55e',
         lang: 'zh-cn',
@@ -1335,7 +1358,7 @@ function PlayPageClient() {
         moreVideoAttr: {
           crossOrigin: 'anonymous',
           muted: shouldStartMuted,
-          autoplay: true,
+          autoplay: shouldAutoplay,
           playsInline: true,
           webkitPlaysInline: true,
         } as any,
@@ -1371,16 +1394,19 @@ function PlayPageClient() {
             video.hls = hls;
 
             ensureVideoSource(video, url);
-			
-			// ✅ HLS 绑定后再尝试让 video 自己自动播放一次
-            video.muted = shouldStartMuted;
-            video.autoplay = true;
-            const playPromise = video.play();
-            if (playPromise && typeof playPromise.then === 'function') {
-              playPromise.catch(() => {
-                // 被浏览器策略拦截就算了，用户点一下播放就好了
-              });
-            }
+
+			// 根据策略决定是否主动调用 play
+			video.muted = shouldStartMuted;
+			video.autoplay = shouldAutoplay;
+
+			if (shouldAutoplay) {
+			  const playPromise = video.play();
+			  if (playPromise && typeof playPromise.then === 'function') {
+				playPromise.catch(() => {
+				  // 被浏览器策略拦截就算了，用户点一下播放就好了
+				});
+			  }
+			}
 
             hls.on(Hls.Events.ERROR, function (event: any, data: any) {
               console.error('HLS Error:', event, data);
