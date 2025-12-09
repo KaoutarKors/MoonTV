@@ -191,7 +191,7 @@ function PlayPageClient() {
     useState(false);
 
   // 换源加载状态
-  const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [videoLoadingStage, setVideoLoadingStage] = useState<
     'initing' | 'sourceChanging'
   >('initing');
@@ -1276,6 +1276,9 @@ function PlayPageClient() {
           videoUrl
         );
       }
+	  
+	  setIsVideoLoading(false);
+	  
       return;
     }
 
@@ -1503,6 +1506,8 @@ function PlayPageClient() {
 		    videoEl.setAttribute('webkit-playsinline', 'true');
 		    videoEl.setAttribute('x5-playsinline', 'true');
 		  }
+		  
+		  setIsVideoLoading(false);
 
         // 播放器就绪后，如果正在播放则请求 Wake Lock
         if (artPlayerRef.current && !artPlayerRef.current.paused) {
