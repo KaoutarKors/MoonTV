@@ -1298,9 +1298,9 @@ function PlayPageClient() {
         container: artRef.current,
         url: videoUrl,
         poster: videoCover,
-        volume: 0.7,
+        volume: 0,
         isLive: false,
-        muted: isIOS || isSafari,
+        muted: true,
         autoplay: true,
         pip: true,
         autoSize: false,
@@ -1495,39 +1495,45 @@ function PlayPageClient() {
           },
         ],
       });
+	  
+	  let hasRestoredVolume = false;
+
+      const restoreVolumeOnUserClick = () => {
+        if (hasRestoredVolume) return;
+        hasRestoredVolume = true;
+
+        if (artPlayerRef.current) {
+          artPlayerRef.current.muted = false;
+          artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
+          artPlayerRef.current.notice.show = `🔊 已恢复声音（音量 ${Math.round(
+            artPlayerRef.current.volume * 100
+          )}）`;
+        }
+
+        // 只需要执行一次，解绑监听
+        artPlayerRef.current?.off('click', restoreVolumeOnUserClick);
+      };
+
+      artPlayerRef.current.on('click', restoreVolumeOnUserClick);
 
       // 监听播放器事件
-      artPlayerRef.current.on('ready', () => {
-        setError(null);
+		artPlayerRef.current.on('ready', () => {
+		  setError(null);
 
-        // iOS / Safari：静音自动播放后，首次真正开始播放时恢复音量
-        if ((isIOS || isSafari) && artPlayerRef.current.muted) {
-          console.log('iOS/Safari 静音自动播放，准备在 playback 开始后恢复音量');
+		  // 播放器就绪后，主动尝试一次播放
+		  artPlayerRef.current
+			.play()
+			.catch((err: any) => {
+			  console.log('浏览器拦截自动播放，需要用户点击：', err);
+			  artPlayerRef.current.notice.show = '🔇 浏览器禁止自动播放，请点击播放按钮';
+			});
 
-          const handleFirstPlay = () => {
-            setTimeout(() => {
-              if (artPlayerRef.current && artPlayerRef.current.muted) {
-                artPlayerRef.current.muted = false;
-                artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
-                console.log(
-                  'iOS/Safari 已自动恢复音量:',
-                  artPlayerRef.current.volume
-                );
-              }
-            }, 500); // 稍微延迟，确保已经稳定开始播放
+		  // 播放后申请 Wake Lock
+		  if (artPlayerRef.current && !artPlayerRef.current.paused) {
+			requestWakeLock();
+		  }
+		});
 
-            // 只执行一次
-            artPlayerRef.current?.off('video:play', handleFirstPlay);
-          };
-
-          artPlayerRef.current.on('video:play', handleFirstPlay);
-        }
-
-        // 播放器就绪后，如果正在播放则请求 Wake Lock
-        if (artPlayerRef.current && !artPlayerRef.current.paused) {
-          requestWakeLock();
-        }
-      });
 
 
       // 监听播放状态变化，控制 Wake Lock
@@ -1582,6 +1588,15 @@ function PlayPageClient() {
               console.log('自动播放被浏览器拦截，需要用户点击播放按钮：', err);
             });
         }
+		
+		if ((isIOS || isSafari) && artPlayerRef.current.paused) {
+			artPlayerRef.current
+			  .play()
+			  .catch((err: any) => {
+				console.log('自动播放被浏览器拦截，需要用户点击播放按钮：', err);
+			  });
+		  }
+		
 
         setTimeout(() => {
           if (
