@@ -205,9 +205,7 @@ function PlayPageClient() {
 
   // Wake Lock 相关
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-  
-  // ✅ 记录当前页面用户是否已经“手动播放”过一次，从而解锁有声自动播放
-  const autoPlayUnlockedRef = useRef(false);
+
   // -----------------------------------------------------------------------------
   // 工具函数（Utils）
   // -----------------------------------------------------------------------------
@@ -1240,40 +1238,6 @@ function PlayPageClient() {
     ) {
       return;
     }
-	
-	// 判断是不是移动端设备
-	const ua =
-	  typeof navigator !== 'undefined' ? navigator.userAgent : '';
-	const isMobile =
-	  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-		ua
-	  );
-
-	// 是否已经被用户手动播放过一次（同一页面生命周期内）
-	const hasUnlocked = autoPlayUnlockedRef.current;
-
-	// 这里统一控制：是否自动播放 + 是否静音
-	let shouldAutoplay = true;
-	let shouldStartMuted = false;
-
-	// ✅ 手机端第一次：不自动播放 + 不静音（等待用户手动点播放）
-	if (isMobile && !hasUnlocked) {
-	  shouldAutoplay = false;
-	  shouldStartMuted = false;
-	}
-
-	// ✅ 手机端后续（已经解锁）：可以自动播放 + 有声音
-	if (isMobile && hasUnlocked) {
-	  shouldAutoplay = true;
-	  shouldStartMuted = false;
-	}
-
-	// ✅ PC 端：一直允许自动播放 + 有声音（按你需要）
-	if (!isMobile) {
-	  shouldAutoplay = true;
-	  shouldStartMuted = false;
-	}
-
 
     // 确保选集索引有效
     if (
@@ -1284,7 +1248,6 @@ function PlayPageClient() {
     ) {
       setError(`选集索引无效，当前共 ${totalEpisodes} 集`);
       return;
-	  
     }
 
     if (!videoUrl) {
@@ -1328,10 +1291,10 @@ function PlayPageClient() {
         container: artRef.current,
         url: videoUrl,
         poster: videoCover,
-        volume: lastVolumeRef.current || 0.7,
+        volume: 0.7,
         isLive: false,
-        muted: shouldStartMuted,
-        autoplay: shouldAutoplay,
+        muted: false,
+        autoplay: true,
         pip: true,
         autoSize: false,
         autoMini: false,
@@ -1347,7 +1310,7 @@ function PlayPageClient() {
         miniProgressBar: false,
         mutex: true,
         playsInline: true,
-        autoPlayback: shouldAutoplay,
+        autoPlayback: false,
         airplay: true,
         theme: '#22c55e',
         lang: 'zh-cn',
@@ -1357,11 +1320,7 @@ function PlayPageClient() {
         lock: true,
         moreVideoAttr: {
           crossOrigin: 'anonymous',
-          muted: shouldStartMuted,
-          autoplay: shouldAutoplay,
-          playsInline: true,
-          webkitPlaysInline: true,
-        } as any,
+        },
         // HLS 支持配置
         customType: {
           m3u8: function (video: HTMLVideoElement, url: string) {
@@ -1394,19 +1353,6 @@ function PlayPageClient() {
             video.hls = hls;
 
             ensureVideoSource(video, url);
-
-			// 根据策略决定是否主动调用 play
-			video.muted = shouldStartMuted;
-			video.autoplay = shouldAutoplay;
-
-			if (shouldAutoplay) {
-			  const playPromise = video.play();
-			  if (playPromise && typeof playPromise.then === 'function') {
-				playPromise.catch(() => {
-				  // 被浏览器策略拦截就算了，用户点一下播放就好了
-				});
-			  }
-			}
 
             hls.on(Hls.Events.ERROR, function (event: any, data: any) {
               console.error('HLS Error:', event, data);
@@ -1556,22 +1502,6 @@ function PlayPageClient() {
       // 监听播放状态变化，控制 Wake Lock
       artPlayerRef.current.on('play', () => {
         requestWakeLock();
-		
-        // ✅ 第一次在移动端播放（通常是用户手动点播放）
-        if (isMobile && !autoPlayUnlockedRef.current) {
-          autoPlayUnlockedRef.current = true;
-
-          try {
-            // 立刻关掉静音，并恢复上次音量
-            artPlayerRef.current.muted = false;
-            if (artPlayerRef.current.video) {
-              artPlayerRef.current.video.muted = false;
-            }
-            artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
-          } catch (e) {
-            // 某些极端环境可能仍然不允许关静音，忽略即可
-          }
-        }
       });
 
       artPlayerRef.current.on('pause', () => {
