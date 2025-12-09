@@ -1536,10 +1536,29 @@ function PlayPageClient() {
 
 
 
-      // 监听播放状态变化，控制 Wake Lock
-      artPlayerRef.current.on('play', () => {
-        requestWakeLock();
-      });
+      // 监听播放状态变化，控制 Wake Lock + 自动恢复音量
+		let hasAutoRestoredVolume = false;
+
+		artPlayerRef.current.on('play', () => {
+		  requestWakeLock();
+
+		  // 只自动恢复一次
+		  if (hasAutoRestoredVolume) return;
+		  hasAutoRestoredVolume = true;
+
+		  // 给播放器一点时间真正开始播，再恢复音量
+		  setTimeout(() => {
+			if (!artPlayerRef.current) return;
+
+			// 尝试自动恢复声音
+			artPlayerRef.current.muted = false;
+			artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
+			artPlayerRef.current.notice.show = `🔊 已恢复声音（音量 ${Math.round(
+			  artPlayerRef.current.volume * 100
+			)}）`;
+		  }, 500);
+		});
+
 
       artPlayerRef.current.on('pause', () => {
         releaseWakeLock();
