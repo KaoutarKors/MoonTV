@@ -1255,6 +1255,13 @@ function PlayPageClient() {
       return;
     }
     console.log(videoUrl);
+	
+	// 设备/浏览器检测
+    const ua =
+      typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const isIOS = /iP(hone|od|ad)/.test(ua);
+    const isSafari =
+      /^((?!chrome|android).)*safari/i.test(ua.toLowerCase());
 
     // 检测是否为WebKit浏览器
     const isWebkit =
@@ -1293,7 +1300,7 @@ function PlayPageClient() {
         poster: videoCover,
         volume: 0.7,
         isLive: false,
-        muted: false,
+        muted: isIOS || isSafari,
         autoplay: true,
         pip: true,
         autoSize: false,
@@ -1311,7 +1318,7 @@ function PlayPageClient() {
         mutex: true,
         playsInline: true,
         autoPlayback: false,
-        airplay: true,
+        airplay: isIOS || isSafari,
         theme: '#22c55e',
         lang: 'zh-cn',
         hotkey: false,
@@ -1493,11 +1500,35 @@ function PlayPageClient() {
       artPlayerRef.current.on('ready', () => {
         setError(null);
 
+        // iOS / Safari：静音自动播放后，首次真正开始播放时恢复音量
+        if ((isIOS || isSafari) && artPlayerRef.current.muted) {
+          console.log('iOS/Safari 静音自动播放，准备在 playback 开始后恢复音量');
+
+          const handleFirstPlay = () => {
+            setTimeout(() => {
+              if (artPlayerRef.current && artPlayerRef.current.muted) {
+                artPlayerRef.current.muted = false;
+                artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
+                console.log(
+                  'iOS/Safari 已自动恢复音量:',
+                  artPlayerRef.current.volume
+                );
+              }
+            }, 500); // 稍微延迟，确保已经稳定开始播放
+
+            // 只执行一次
+            artPlayerRef.current?.off('video:play', handleFirstPlay);
+          };
+
+          artPlayerRef.current.on('video:play', handleFirstPlay);
+        }
+
         // 播放器就绪后，如果正在播放则请求 Wake Lock
         if (artPlayerRef.current && !artPlayerRef.current.paused) {
           requestWakeLock();
         }
       });
+
 
       // 监听播放状态变化，控制 Wake Lock
       artPlayerRef.current.on('play', () => {
@@ -1542,6 +1573,15 @@ function PlayPageClient() {
           }
         }
         resumeTimeRef.current = null;
+
+        // iOS / Safari：如果此时仍然没自动播放，主动尝试一次
+        if ((isIOS || isSafari) && artPlayerRef.current.paused) {
+          artPlayerRef.current
+            .play()
+            .catch((err: any) => {
+              console.log('自动播放被浏览器拦截，需要用户点击播放按钮：', err);
+            });
+        }
 
         setTimeout(() => {
           if (
