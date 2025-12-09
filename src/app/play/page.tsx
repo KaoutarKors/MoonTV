@@ -1505,7 +1505,7 @@ function PlayPageClient() {
         if (artPlayerRef.current) {
           artPlayerRef.current.muted = false;
           artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
-          artPlayerRef.current.notice.show = `🔊 已恢复声音（音量 ${Math.round(
+          artPlayerRef.current.notice.show = `🔊 已恢复声音1（音量 ${Math.round(
             artPlayerRef.current.volume * 100
           )}）`;
         }
@@ -1553,10 +1553,10 @@ function PlayPageClient() {
 			// 尝试自动恢复声音
 			artPlayerRef.current.muted = false;
 			artPlayerRef.current.volume = lastVolumeRef.current || 0.7;
-			artPlayerRef.current.notice.show = `🔊 已恢复声音（音量 ${Math.round(
+			artPlayerRef.current.notice.show = `🔊 已恢复声音2（音量 ${Math.round(
 			  artPlayerRef.current.volume * 100
 			)}）`;
-		  }, 500);
+		  }, 3000);
 		});
 
 
